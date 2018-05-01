@@ -1,0 +1,8 @@
+apiVersion: hcloud.apricote.de/v1alpha1
+kind: FloatingIP
+metadata:
+  name: load-balancer-worker-pool
+spec:
+  IP: 78.46.244.114
+  nodeSelector:
+    node-role.kubernetes.io/worker: true
