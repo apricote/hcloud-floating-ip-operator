@@ -2,7 +2,7 @@
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: hcloud-floating-ip-controller
+  name: hcloud-floating-ip-operator
 rules:
 - apiGroups:
     - ""
@@ -20,21 +20,21 @@ rules:
     - watch
     - list
 ---
-apiVersion: v1
 kind: ServiceAccount
+apiVersion: v1
 metadata:
-  name: hcloud-floating-ip-controller
+  name: hcloud-floating-ip-operator
   namespace: kube-system
 ---
-apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
-  name: hcloud-floating-ip-controller
+  name: hcloud-floating-ip-operator
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: kubewahcloud-floating-ip-controllertch
+  name: hcloud-floating-ip-operator
 subjects:
   - kind: ServiceAccount
-    name: hcloud-floating-ip-controller
+    name: hcloud-floating-ip-operator
     namespace: kube-system
