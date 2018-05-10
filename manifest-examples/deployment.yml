@@ -1,0 +1,41 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: cloud-system
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hcloud-floating-ip-operator
+  namespace: cloud-system
+  labels:
+    app: floating-ip-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: floating-ip-operator
+  template:
+    metadata:
+      labels:
+        app: floating-ip-operator
+    spec:
+      containers:
+      - name: operator
+        image: apricote/hcloud-floating-ip-operator:latest
+        env:
+        - name: HCLOUD_API_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: hcloud
+              key: token
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: hcloud
+  namespace: cloud-system
+type: Opaque
+data:
+  token: HERE-YOUR-TOKEN

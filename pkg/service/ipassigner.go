@@ -20,6 +20,11 @@ import (
 	"github.com/apricote/hcloud-floating-ip-operator/pkg/log"
 )
 
+const (
+	// MinimalIntervalSeconds is the lower bound for refreshing floating ips
+	MinimalIntervalSeconds hcloudv1alpha1.Seconds = 5
+)
+
 // TimeWrapper is a wrapper around time so it can be mocked
 type TimeWrapper interface {
 	// After is the same as time.After
@@ -111,9 +116,9 @@ func (p *IPAssigner) Stop() error {
 func (p *IPAssigner) run() error {
 	for {
 		select {
-		case <-p.time.After(time.Duration(p.fip.Spec.IntervalSeconds) * time.Second):
+		case <-p.time.After(time.Duration(max(p.fip.Spec.IntervalSeconds, MinimalIntervalSeconds)) * time.Second):
 			if err := p.assign(); err != nil {
-				p.logger.Errorf("error terminating pods: %s", err)
+				p.logger.Errorf("error assigning ip: %s", err)
 			}
 		case <-p.stopC:
 			return nil

@@ -4,5 +4,6 @@ metadata:
   name: load-balancer-worker-pool
 spec:
   IP: 78.46.244.114
+  intervalSeconds: 5
   nodeSelector:
-    node-role.kubernetes.io/worker: true
+    node-role.kubernetes.io/worker: "true"
