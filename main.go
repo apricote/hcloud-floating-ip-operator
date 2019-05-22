@@ -20,6 +20,8 @@ import (
 	"os"
 
 	hcloudv1beta1 "github.com/apricote/hcloud-floating-ip-operator/api/v1beta1"
+	corev1 "k8s.io/api/core/v1"
+
 	"github.com/apricote/hcloud-floating-ip-operator/controllers"
 	"github.com/hetznercloud/hcloud-go/hcloud"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -36,6 +38,7 @@ var (
 
 func init() {
 
+	corev1.AddToScheme(scheme)
 	hcloudv1beta1.AddToScheme(scheme)
 	// +kubebuilder:scaffold:scheme
 }
