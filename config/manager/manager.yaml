@@ -56,4 +56,10 @@ spec:
             requests:
               cpu: 100m
               memory: 20Mi
+          env:
+            - name: HCLOUD_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: hcloud
+                  key: token
       terminationGracePeriodSeconds: 10

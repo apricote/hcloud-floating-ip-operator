@@ -17,6 +17,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
 
 	hcloudv1beta1 "github.com/apricote/hcloud-floating-ip-operator/api/v1beta1"
@@ -46,9 +47,15 @@ func init() {
 func main() {
 	var metricsAddr string
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
-	var hcloudToken string
-	flag.StringVar(&hcloudToken, "hcloud-token", "", "The token that will be used to authenticate with Hetzner Cloud.")
 	flag.Parse()
+
+	// get HCloud Token from env variable
+	hcloudToken := os.Getenv("HCLOUD_TOKEN")
+	if len(hcloudToken) == 0 {
+		err := fmt.Errorf("missing HCLOUD_TOKEN")
+		setupLog.Error(err, "HCLOUD_TOKEN is required but not set")
+		os.Exit(1)
+	}
 
 	ctrl.SetLogger(zap.Logger(true))
 
