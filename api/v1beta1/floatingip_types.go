@@ -26,7 +26,7 @@ import (
 type FloatingIPSpec struct {
 	// Floating IP from Hetzner that will be assigned to nodes matching the
 	// nodeSelector
-	IP string `json:"IP"`
+	IP string `json:"ip"`
 
 	// Query to select a pool of nodes that
 	NodeSelector map[string]string `json:"nodeSelector,omitempty"`

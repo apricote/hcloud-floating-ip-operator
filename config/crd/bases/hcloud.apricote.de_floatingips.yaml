@@ -387,7 +387,7 @@ spec:
           type: object
         spec:
           properties:
-            IP:
+            ip:
               description: Floating IP from Hetzner that will be assigned to nodes
                 matching the nodeSelector
               type: string
@@ -397,7 +397,7 @@ spec:
               description: Query to select a pool of nodes that
               type: object
           required:
-          - IP
+          - ip
           type: object
         status:
           properties:
