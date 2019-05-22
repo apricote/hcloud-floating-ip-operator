@@ -1,0 +1,10 @@
+apiVersion: hcloud.apricote.de/v1beta1
+kind: FloatingIP
+metadata:
+  name: floatingip-sample
+spec:
+  # Insert your IP from HCloud here
+  ip: 123.123.123.123
+  nodeSelector:
+    # Only assign FloatingIPs to worker nodes
+    node-role.kubernetes.io/worker: "true"

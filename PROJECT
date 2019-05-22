@@ -1,0 +1,3 @@
+version: "2"
+domain: apricote.de
+repo: github.com/apricote/hcloud-floating-ip-operator
