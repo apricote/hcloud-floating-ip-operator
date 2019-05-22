@@ -23,6 +23,7 @@ import (
 	"github.com/go-logr/logr"
 	"github.com/hetznercloud/hcloud-go/hcloud"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
@@ -57,30 +58,6 @@ func (r *FloatingIPReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 		return ctrl.Result{}, err
 	}
 
-	// Get all eligible targets.
-	var eligibleNodes corev1.NodeList
-	if err := r.List(ctx, &eligibleNodes, client.MatchingLabels(fIP.Spec.NodeSelector)); err != nil {
-		log.Error(err, "unable to fetch eligible nodes")
-		return ctrl.Result{}, err
-	}
-
-	// TODO check node status
-
-	// Ensure that we have at least one eligible node
-	total := len(eligibleNodes.Items)
-	if total == 0 {
-		err := fmt.Errorf("no eligible nodes found for FloatingIP(%s)", fIP.Name)
-		log.Error(err, "no eligible nodes found")
-		return ctrl.Result{}, err
-	}
-
-	// TODO: verify that reassignment is absolutly necessary
-
-	// In pratice it should not make a difference which node we choose
-	// as long as the NodeSelector is properly set up.
-	// Might as well choose the first item of the list
-	targetNode := eligibleNodes.Items[0]
-
 	// Find Hetzner Floating IP
 	ip := net.ParseIP(fIP.Spec.IP)
 	if ip == nil {
@@ -108,10 +85,58 @@ func (r *FloatingIPReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 		return ctrl.Result{}, err
 	}
 
-	// Find HCloud server mathing selected node
+	// If the IP is assigned, check if node is healthy -> noop
+	// TODO: Also verify that node matches NodeSelector
+	if hcloudFIP.Server != nil {
+		var currentNode corev1.Node
+		err := r.Client.Get(ctx, types.NamespacedName{Name: hcloudFIP.Server.Name}, &currentNode)
+		if err != nil {
+			if !errors.IsNotFound(err) {
+				log.Error(err, "unable to fetch currently assigned node")
+				return ctrl.Result{}, err
+			} else {
+				// If the node can not be found we will continue with assignment
+			}
+		} else {
+			// Node returned, verify that node is healthy
+			if currentNode.Status == "FINE" {
+				return ctrl.Result{}, nil
+			}
+
+		}
+	}
+
+	// Get all eligible targets.
+	var eligibleNodes corev1.NodeList
+	if err := r.List(ctx, &eligibleNodes, client.MatchingLabels(fIP.Spec.NodeSelector)); err != nil {
+		log.Error(err, "unable to fetch eligible nodes")
+		return ctrl.Result{}, err
+	}
+
+	// TODO check node status
+
+	// Ensure that we have at least one eligible node
+	total := len(eligibleNodes.Items)
+	if total == 0 {
+		err := fmt.Errorf("no eligible nodes found for FloatingIP(%s)", fIP.Name)
+		log.Error(err, "no eligible nodes found")
+		return ctrl.Result{}, err
+	}
+
+	// TODO: verify that reassignment is absolutly necessary
+
+	// In pratice it should not make a difference which node we choose
+	// as long as the NodeSelector is properly set up.
+	// Might as well choose the first item of the list
+	targetNode := eligibleNodes.Items[0]
+
 	server, _, err := r.HCloudClient.Server.GetByName(ctx, targetNode.Name)
 	if err != nil {
-		log.Error(err, "selected node not found in hcloud server list")
+		log.Error(err, "unable to retrieve server from hcloud")
+		return ctrl.Result{}, err
+	}
+	if server == nil {
+		err := fmt.Errorf("server with name %s was not found in hcloud", targetNode.Name)
 		return ctrl.Result{}, err
 	}
 
@@ -128,9 +153,17 @@ func (r *FloatingIPReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 		}
 	}
 
+	//spew.Dump(hcloudFIP, server)
 	_, _, err = r.HCloudClient.FloatingIP.Assign(ctx, hcloudFIP, server)
 	if err != nil {
-		log.Error(err, "unable to assign floating ip to ")
+		log.Error(err, "unable to assign floating ip to node")
+		return ctrl.Result{}, err
+	}
+
+	fIP.Status.NodeName = targetNode.Name
+
+	if err := r.Status().Update(ctx, &fIP); err != nil {
+		log.Error(err, "unable to update floating ip status")
 		return ctrl.Result{}, err
 	}
 
@@ -143,14 +176,18 @@ func (r *FloatingIPReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&hcloudv1beta1.FloatingIP{}).
 		Watches(&source.Kind{Type: &corev1.Node{}}, &handler.EnqueueRequestsFromMapFunc{
 			ToRequests: handler.ToRequestsFunc(func(obj handler.MapObject) []ctrl.Request {
-				var floatingips hcloudv1beta1.FloatingIPList
-				if err := r.List(context.Background(), &floatingips, client.InNamespace(obj.Meta.GetNamespace()), client.MatchingField(".status.nodeName", obj.Meta.GetName())); err != nil {
+				var fIPList hcloudv1beta1.FloatingIPList
+
+				// TODO ask hcloud which ips are assigned to this node
+				// Current implementation just marks all floating ips
+				if err := r.List(context.Background(), &fIPList, client.InNamespace(obj.Meta.GetNamespace())); err != nil {
+					//spew.Dump(err)
 					r.Log.Info("unable to get floatingips for node", "node", obj)
 					return nil
 				}
 
-				res := make([]ctrl.Request, len(floatingips.Items))
-				for i, ip := range floatingips.Items {
+				res := make([]ctrl.Request, len(fIPList.Items))
+				for i, ip := range fIPList.Items {
 					res[i].Name = ip.Name
 					res[i].Namespace = ip.Namespace
 				}
